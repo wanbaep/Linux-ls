@@ -4,66 +4,124 @@
 #include <string.h>
 
 struct Node{
-	char *f_name;
+	char *d_name;
 	struct Node *pNext;
+	int hidden;
 };
 
 struct List{
 	struct Node *pHead;
 };
 
-int insertNode(struct List *list, char *d_name);
-void printNode(struct List *list);
+int insert_node(struct List *list, struct dirent *dir);
+void add_hidden_mark(struct List *list);
+void print_node(struct List *list);
 
 int main(int argc, char **argv){
 	DIR *dirp;
 	struct dirent *dir;
 	struct Node *node;
 	struct List list;
+	int hidden, in_flag, c_p;
 
 	list.pHead = NULL;
 	dirp = opendir(".");
 
+	
 	while((dir=readdir(dirp))!=NULL){
-		printf("%s\n", dir->d_name);
-		insertNode(&list,dir->d_name);
+		insert_node(&list, dir);
 	}
-
-	printNode(&list);
+	add_hidden_mark(&list);
+	print_node(&list);
 
 	closedir(dirp);
 	
 	return 0;
 }
 
-int insertNode(struct List *list, char *d_name){
+int insert_node(struct List *list, struct dirent *dir){
+	struct Node *pCur = NULL, *pNext = NULL, *pPre =NULL;	
 	struct Node *pNew = (struct Node*)malloc(sizeof(struct Node));
-	pNew->f_name = (char*)malloc(sizeof(char)*strlen(d_name));
-	memset(pNew->f_name, 0, sizeof(char)*strlen(d_name));
-	pNew->f_name = d_name;
-	struct Node *pCur=NULL;
+	
+	pNew->d_name = (char*)malloc(sizeof(char)*strlen(dir->d_name));
+	memset(pNew->d_name, 0, sizeof(char)*strlen(dir->d_name));
 
-	if(list->pHead==NULL){
+	if(dir->d_name[0]=='.')
+	{
+		strcpy(pNew->d_name,dir->d_name+1);
+		pNew->hidden = 1;
+	}
+	else
+	{
+		strcpy(pNew->d_name,dir->d_name);
+		pNew->hidden = 0;
+	}
+	
+	if(list->pHead == NULL)
+	{
 		list->pHead = pNew;
-	} else{
+		pNew->pNext = NULL;
+	}
+	else
+	{
 		pCur = list->pHead;
-		while(pCur->pNext!=NULL){
-			pCur = pCur->pNext;
+		pPre = pCur;
+		while(pCur!=NULL)
+		{
+			if(strcasecmp(pCur->d_name,pNew->d_name) > 0)
+			{
+				if(pCur == list->pHead)
+				{
+					pNew->pNext = pCur;
+					list->pHead = pNew;
+				}
+				else
+				{
+					pPre->pNext = pNew;
+					pNew->pNext = pCur;
+				}
+				return 1;
+			}
+			else
+			{
+				pPre = pCur;
+				pCur = pCur->pNext;
+			}
 		}
-		pCur->pNext = pNew;
+		pPre->pNext = pNew;
 	}
 
 	return 1;
 }
 
-void printNode(struct List *list){
+void add_hidden_mark(struct List *list){
 	struct Node *pCur = list->pHead;
-
-	printf("Print List\n");
+	int i;
+	char temp[100]={"\0"};
 
 	while(pCur!=NULL)
 	{
-		printf("%s\n", pCur->f_name);
+		if(pCur->hidden==1)
+		{
+			memset(temp,0,sizeof(char)*100);
+			strcpy(temp,pCur->d_name);
+			pCur->d_name[0]='.';
+			for(i=0;i<strlen(temp);i++)
+			{
+				pCur->d_name[i+1]=temp[i];
+			}
+		}
+		pCur = pCur->pNext;
+	}
+
+}
+
+void print_node(struct List *list){
+	struct Node *pCur = list->pHead;
+
+	while(pCur!=NULL)
+	{
+		printf("%s\n", pCur->d_name);
 		pCur = pCur->pNext;
 	}
 }
