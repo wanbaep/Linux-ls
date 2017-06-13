@@ -2,6 +2,9 @@
 #include <dirent.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 struct Node{
 	char *d_name;
@@ -15,24 +18,51 @@ struct List{
 
 int insert_node(struct List *list, struct dirent *dir);
 void add_hidden_mark(struct List *list);
-void print_node(struct List *list);
+void print_node(struct List *list, int aflag, int lflag);
 
 int main(int argc, char **argv){
 	DIR *dirp;
 	struct dirent *dir;
-	struct Node *node;
 	struct List list;
-	int hidden, in_flag, c_p;
-
+	struct List show_list;
+	int aflag = 0, lflag = 0;
+	int index, c, i;
+	opterr=0;
 	list.pHead = NULL;
+
+	while((c = getopt(argc, argv, "al"))!=-1)
+	{
+		switch(c)
+		{
+			case 'a':
+				aflag = 1;
+				break;
+			case 'l':
+				lflag = 1;
+				break;
+			case '?':
+				printf("Unknown Option: %c\n",optopt);
+				break;
+		}
+	}
+
+	printf("aflag = %d, lflag = %d \n", aflag, lflag);
+
+	printf("argc: %d, optind: %d\n", argc,optind);
+	for(i=0;i<argc;i++)
+		printf("%d: %s ",i, argv[i]);
+	printf("\n");
+
+	for(index=optind;index<argc;index++)
+		printf("Non-option argument %s\n", argv[index]);
+
 	dirp = opendir(".");
 
-	
 	while((dir=readdir(dirp))!=NULL){
 		insert_node(&list, dir);
 	}
 	add_hidden_mark(&list);
-	print_node(&list);
+	print_node(&list, aflag, lflag);
 
 	closedir(dirp);
 	
@@ -116,12 +146,48 @@ void add_hidden_mark(struct List *list){
 
 }
 
-void print_node(struct List *list){
+void print_node(struct List *list, int aflag, int lflag){
 	struct Node *pCur = list->pHead;
+	
 
-	while(pCur!=NULL)
+	if(aflag == 0 && lflag == 0)
 	{
-		printf("%s\n", pCur->d_name);
-		pCur = pCur->pNext;
+		while(pCur!=NULL)
+		{
+			if(pCur->hidden==0)
+				printf("%s\n",pCur->d_name);
+			pCur = pCur->pNext;
+		}
+	}
+	else if(aflag == 1 && lflag == 0)
+	{
+		while(pCur!=NULL)
+		{
+			printf("%s\n", pCur->d_name);
+			pCur = pCur->pNext;
+		}
+	}
+	else if(aflag == 0 && lflag == 1)
+	{
+		while(pCur!=NULL)
+		{
+			if(pCur->hidden==0)
+			{
+				
+
+				printf("%s\n",pCur->d_name);
+
+			}
+			pCur = pCur->pNext;
+		}
+	}
+	else if(aflag == 1 && lflag == 1)
+	{
+		while(pCur!=NULL)
+		{
+			printf("%s\n", pCur->d_name);
+			pCur = pCur->pNext;
+		}
 	}
 }
+
