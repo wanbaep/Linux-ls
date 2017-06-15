@@ -33,7 +33,7 @@ char *mon_type[12] = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct
 int insert_node(struct List *list, struct dirent *dir);
 void add_hidden_mark(struct List *list);
 void select_list(struct List *list, int aflag);
-int create_output(char* path, int lflag);
+int create_output(FILE* fp, char* path, int lflag);
 int deallocated_node(struct List *list);
 void get_argument_path(char* argv, char* path, char* temp, char* d_name, int index);
 void create_path(char* path);
@@ -49,10 +49,17 @@ int main(int argc, char **argv){
 	struct List list;
 	struct stat buf;
 	int aflag = 0, lflag = 0;
-	int index, c, s_dir=0;
+	int index, c, s_dir=0, i;
 	char path[150];
 	char temp[150];
 	char d_name[50];
+	char cmd[100]={'\0'};
+	FILE *fp=fopen("html_ls.html","w");
+	if(fp==0){
+		printf("File Open ERROR!\n");
+		return -1;
+	}
+
 	opterr=0;
 	list.pHead = NULL;
 	
@@ -71,13 +78,27 @@ int main(int argc, char **argv){
 				break;
 		}
 	}
-	
-	
+
+	for(i=0;i<argc;i++)
+	{
+		strcat(cmd, argv[i]);
+		strcat(cmd, " ");
+	}
+	getcwd(path,_MAX_PATH);
+
+	fprintf(fp,"<html>\n");
+	fprintf(fp,"<head>\n");
+	fprintf(fp,"<title>%s</title>\n",path);
+	fprintf(fp,"<b><h3>%s</h3></b>\n",cmd);
+	fprintf(fp,"<style> table, th, td{border: 1px solid black; border-collapse:collapse;} th{text-align:center;}</style>\n");
+	fprintf(fp,"</head>\n");
+	fprintf(fp,"<body>\n");
+
 	if(optind==argc)
 	{
 		//non-argument case
-		getcwd(path,_MAX_PATH);
 		printf("Directory path: %s\n",path);
+		fprintf(fp,"<h4>Directory path: %s</h4>",path);
 		dirp = opendir(".");
 		while((dir=readdir(dirp))!=NULL){
 			insert_node(&list, dir);
@@ -85,7 +106,7 @@ int main(int argc, char **argv){
 		add_hidden_mark(&list);
 		select_list(&list, aflag);			//-a option select file list so, come first
 		
-		create_output(path, lflag);		//current path and lflag
+		create_output(fp, path, lflag);		//current path and lflag
 		closedir(dirp);
 		deallocated_node(&list);
 	}
@@ -100,13 +121,15 @@ int main(int argc, char **argv){
 			get_argument_path(argv[index],path, temp, d_name, index);
 
 			printf("Directory path: %s\n",path);
+			fprintf(fp,"<h4>Directory path: %s</h4>",path);
 //			printf("temp: %s\n",temp);
 //			printf("d_name: %s\n",d_name);
 
 			//File인지 Directory인지 검사
 			if(stat(path,&buf)<0)
 			{
-				printf("ls: cannot access %s: No such file or directory\n",argv[index]); 
+				printf("ls: cannot access %s: No such file or directory\n",argv[index]);
+				fprintf(fp,"<p>ls: cannot access %s: No such file or directory\n",argv[index]);
 			}
 			else
 			{
@@ -131,12 +154,15 @@ int main(int argc, char **argv){
 
 				add_hidden_mark(&list);
 				select_list(&list, aflag);
-				create_output(s_dir==1 ? path:temp, lflag);
+				create_output(fp,s_dir==1 ? path:temp, lflag);
 				closedir(dirp);
 				deallocated_node(&list);
 			}
 		}
 	}
+	
+	fprintf(fp,"</body>\n");
+	fprintf(fp,"</html>\n");
 
 	return 0;
 }
@@ -357,7 +383,7 @@ void select_list(struct List *list, int aflag)
 	}
 }
 
-int create_output(char* path, int lflag)
+int create_output(FILE* fp, char* path, int lflag)
 {
 	int i, size;
 	struct stat buf;
@@ -369,70 +395,108 @@ int create_output(char* path, int lflag)
 	char *ptr;
 	char a[10];
 	char temp[100]={'\0'};
+	char arr[100]={'\0'};
 	char abs_path[150]={'\0'};
+
+	fprintf(fp,"<hr>\n");
+	fprintf(fp,"<table style='width:80%%'>\n");
+
+	if(lflag==1)
+		fprintf(fp,"<tr>\n<th>Name</th><th>Permission</th><th>Link</th><th>Owner</th><th>Group</th><th>Size</th><th>LastModified</th>\n</tr>\n");
+	else
+		fprintf(fp,"<tr><th>Name</th><tr>\n");
 
 	pCur = pop();
 	i=0;
 	while(pCur!=NULL)
 	{
 		memset(temp, 0, sizeof(char)*100);
-		memset(abs_path, 0, sizeof(char)*150);
+		
+		if(strcmp("html_ls.html",pCur->d_name)==0)
+		{
+			pCur = pop();
+			continue ;
+		}
+
+		fprintf(fp,"<tr>\n");
+		fprintf(fp,"<td><a href='./ls /'>%s</a></td>\n",pCur->d_name);
+
 		if(lflag==1)
 		{
+			memset(arr, 0, sizeof(char)*100);
+					memset(abs_path, 0, sizeof(char)*150);
+		
 			sprintf(abs_path, "%s%s%s",path,"/",pCur->d_name);
-		if(stat(abs_path,&buf)<0){
-			printf("ls: cannot access %s: No such file or directory\n",pCur->d_name);
-			return -1;
-		}
+			if(stat(abs_path,&buf)<0)
+			{
+				printf("ls: cannot access %s: No such file or directory\n",pCur->d_name);
+				fprintf(fp,"<p>ls: cannot access %s: No such file or directory\n",pCur->d_name);
+				return -1;
+			}
 
-		if(S_ISREG(buf.st_mode))	//regular
-			ptr = "-";
-		else if(S_ISDIR(buf.st_mode))	//directory
-			ptr = "d";
-		else if(S_ISCHR(buf.st_mode))	//character special
-			ptr = "c";
-		else if(S_ISBLK(buf.st_mode))	//block special
-			ptr = "b";
-		else if(S_ISLNK(buf.st_mode))	//symbolic link
-			ptr = "l";
-		else if(S_ISSOCK(buf.st_mode))	//socket
-			ptr = "s";
-		else
-			ptr = "** unknown mode **";
+			if(S_ISREG(buf.st_mode))	//regular
+				ptr = "-";
+			else if(S_ISDIR(buf.st_mode))	//directory
+				ptr = "d";
+			else if(S_ISCHR(buf.st_mode))	//character special
+				ptr = "c";
+			else if(S_ISBLK(buf.st_mode))	//block special
+				ptr = "b";
+			else if(S_ISLNK(buf.st_mode))	//symbolic link
+				ptr = "l";
+			else if(S_ISSOCK(buf.st_mode))	//socket
+				ptr = "s";
+			else
+				ptr = "** unknown mode **";
 
-		sprintf(temp, "%s", ptr);
-
-		sprintf(temp, "%s%c", temp, buf.st_mode&S_IRUSR ? 'r':'-');
-		sprintf(temp, "%s%c", temp, buf.st_mode&S_IWUSR ? 'w':'-');
-		sprintf(temp, "%s%c", temp, buf.st_mode&S_IXUSR ? 'x':'-');
-		sprintf(temp, "%s%c", temp, buf.st_mode&S_IRGRP ? 'r':'-');
-		sprintf(temp, "%s%c", temp, buf.st_mode&S_IWGRP ? 'w':'-');
-		sprintf(temp, "%s%c", temp, buf.st_mode&S_IXGRP ? 'x':'-');
-		sprintf(temp, "%s%c", temp, buf.st_mode&S_IROTH ? 'r':'-');
-		sprintf(temp, "%s%c", temp, buf.st_mode&S_IWOTH ? 'w':'-');
-		sprintf(temp, "%s%c", temp, buf.st_mode&S_IXOTH ? 'x':'-');
+			//sprintf(temp, "%s", ptr);
+				
+			sprintf(arr, "%s", ptr);
+			sprintf(arr, "%s%c", arr, buf.st_mode&S_IRUSR ? 'r':'-');
+			sprintf(arr, "%s%c", arr, buf.st_mode&S_IWUSR ? 'w':'-');
+			sprintf(arr, "%s%c", arr, buf.st_mode&S_IXUSR ? 'x':'-');
+			sprintf(arr, "%s%c", arr, buf.st_mode&S_IRGRP ? 'r':'-');
+			sprintf(arr, "%s%c", arr, buf.st_mode&S_IWGRP ? 'w':'-');
+			sprintf(arr, "%s%c", arr, buf.st_mode&S_IXGRP ? 'x':'-');
+			sprintf(arr, "%s%c", arr, buf.st_mode&S_IROTH ? 'r':'-');
+			sprintf(arr, "%s%c", arr, buf.st_mode&S_IWOTH ? 'w':'-');
+			sprintf(arr, "%s%c", arr, buf.st_mode&S_IXOTH ? 'x':'-');
 	
-		sprintf(temp,"%s %d", temp, (int)buf.st_nlink);
-		
-		user_info = getpwuid(buf.st_uid);
-		group_info = getgrgid(buf.st_gid);
-		tm_info = localtime(&buf.st_mtime);
+			fprintf(fp,"<td align='center'>%s</td>\n",arr);
+			
+			sprintf(temp,"%s %d", arr, (int)buf.st_nlink);
+			fprintf(fp,"<td align='right'>%d</td>\n",(int)buf.st_nlink);
 
-		sprintf(temp, "%s %s %s", temp, user_info->pw_name, group_info->gr_name);
-		sprintf(temp, "%s %5d", temp, (int)buf.st_size);
+			user_info = getpwuid(buf.st_uid);
+			group_info = getgrgid(buf.st_gid);
+			tm_info = localtime(&buf.st_mtime);
+
+			sprintf(temp, "%s %s %s", temp, user_info->pw_name, group_info->gr_name);
+			fprintf(fp,"<td align='center'>%s</td>\n",user_info->pw_name);
+			fprintf(fp,"<td align='center'>%s</td>\n",group_info->gr_name);
+
+			sprintf(temp, "%s %5d", temp, (int)buf.st_size);
+			fprintf(fp,"<td align='right'>%d</td>\n",(int)buf.st_size);
 		
-		sprintf(temp, "%s %s %2d %2d:%2d ", temp, mon_type[(tm_info->tm_mon)], tm_info->tm_mday, tm_info->tm_hour, tm_info->tm_min);
+			memset(arr, 0, sizeof(char)*100);
+			sprintf(arr, "%s %2d %2d:%2d", mon_type[(tm_info->tm_mon)], tm_info->tm_mday, tm_info->tm_hour, tm_info->tm_min);
+			fprintf(fp,"<td align='center'>%s</td>\n",arr);
+
+			sprintf(temp, "%s %s ", temp, arr);
 		}
+		
 
 		sprintf(temp, "%s%s", temp, pCur->d_name);
-		
-		//strcpy temp to output array
+	
+		fprintf(fp,"</tr>\n");
 
 		printf("%s\n",temp);
 
 		pCur = pop();
 		i++;
 	}
+
+	fprintf(fp,"</table>\n");
 
 	return 0;
 }
