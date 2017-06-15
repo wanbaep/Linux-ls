@@ -10,7 +10,7 @@
 #include <time.h>
 
 struct Node{
-	char *d_name;
+	char d_name[100];
 	struct Node *pNext;
 	struct Node *pQnext;
 	int hidden;
@@ -32,7 +32,7 @@ int insert_node(struct List *list, struct dirent *dir);
 void add_hidden_mark(struct List *list);
 void select_list(struct List *list, int aflag);
 int create_output(char* path, int lflag);
-int deallocate_node(struct List *list);
+int deallocated_node(struct List *list);
 
 int push(struct Node *node);
 struct Node* pop();
@@ -97,7 +97,7 @@ int main(int argc, char **argv){
 		select_list(&list, aflag);			//-a option select file list so, come first
 		create_output(path, lflag);		//current path and lflag
 		closedir(dirp);
-		//deallocate_node(&list);
+		deallocated_node(&list);
 	}
 	else
 	{
@@ -201,7 +201,7 @@ int main(int argc, char **argv){
 			create_output(temp, lflag);
 			closedir(dirp);
 
-			//deallocate_node(&list);
+			deallocated_node(&list);
 		}
 	}
 
@@ -214,8 +214,7 @@ int insert_node(struct List *list, struct dirent *dir){
 	struct Node *pCur = NULL, *pNext = NULL, *pPre =NULL;	
 	struct Node *pNew = (struct Node*)malloc(sizeof(struct Node));
 	
-	pNew->d_name = (char*)malloc(sizeof(char)*strlen(dir->d_name)+1);
-	memset(pNew->d_name, 0, sizeof(char)*strlen(dir->d_name)+1);
+	memset(pNew->d_name, 0, sizeof(char)*100);
 
 	if(dir->d_name[0]=='.')
 	{
@@ -392,10 +391,18 @@ int create_output(char* path, int lflag)
 	return 0;
 }
 
-int deallocate_node(struct List *list)
+int deallocated_node(struct List *list)
 {
 	//de-allocate node in List
+	struct Node* pCur = list->pHead;
 
+	while(list->pHead!=NULL)
+	{
+		list->pHead = list->pHead->pNext;
+		pCur->pNext = NULL;
+		free(pCur);
+		pCur = list->pHead;
+	}
 	return 0;
 }
 
