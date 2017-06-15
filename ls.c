@@ -419,7 +419,7 @@ int create_output(FILE* fp, char* path, int lflag)
 		}
 
 		fprintf(fp,"<tr>\n");
-		fprintf(fp,"<td><a href='./ls /'>%s</a></td>\n",pCur->d_name);
+		fprintf(fp,"<td><a href='%s/%s'>%s</a></td>\n", path, pCur->d_name, pCur->d_name);
 
 		if(lflag==1)
 		{
