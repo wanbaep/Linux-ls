@@ -25,6 +25,8 @@ struct Queue{
 	struct Node *pTail;
 };
 
+#define _MAX_PATH 300
+
 struct Queue queue;
 char *mon_type[12] = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
 
@@ -33,35 +35,27 @@ void add_hidden_mark(struct List *list);
 void select_list(struct List *list, int aflag);
 int create_output(char* path, int lflag);
 int deallocated_node(struct List *list);
+void get_argument_path(char* argv, char* path, char* temp, char* d_name, int index);
+void create_path(char* path);
+void del_front_path(char* path);
 
 int push(struct Node *node);
 struct Node* pop();
 int queue_empty();
-int queue_size();
 
 int main(int argc, char **argv){
 	DIR *dirp;
 	struct dirent *dir;
 	struct List list;
-	struct List show_list;
 	struct stat buf;
 	int aflag = 0, lflag = 0;
-	int index, c, i, j;
-	struct info* output;
-	char name[50];
-	char path[100];
-	char temp[100];
+	int index, c, s_dir=0;
+	char path[150];
+	char temp[150];
 	char d_name[50];
-	size_t size;
 	opterr=0;
 	list.pHead = NULL;
-
-
-/*	printf("argc: %d, optind: %d\n", argc,optind);
-	for(i=0;i<argc;i++)
-		printf("%d: %s ",i, argv[i]);
-	printf("\n");
-*/
+	
 	while((c = getopt(argc, argv, "al"))!=-1)
 	{
 		switch(c)
@@ -78,23 +72,19 @@ int main(int argc, char **argv){
 		}
 	}
 	
-/*	for(index=optind;index<argc;index++)
- *		printf("Non-option argument %s\n", argv[index]);
-*/
-
-//	printf("aflag = %d, lflag = %d \n", aflag, lflag);
-
 	
 	if(optind==argc)
 	{
 		//non-argument case
+		getcwd(path,_MAX_PATH);
+		printf("Directory path: %s\n",path);
 		dirp = opendir(".");
-
 		while((dir=readdir(dirp))!=NULL){
 			insert_node(&list, dir);
 		}
 		add_hidden_mark(&list);
 		select_list(&list, aflag);			//-a option select file list so, come first
+		
 		create_output(path, lflag);		//current path and lflag
 		closedir(dirp);
 		deallocated_node(&list);
@@ -103,111 +93,167 @@ int main(int argc, char **argv){
 	{
 		for(index=optind; index<argc; index++)
 		{
-			getcwd(path, size);
-
-			if(index!=optind)
-				printf("\n");
-			if(argv[index][0] == '/')		//절대경로  case
-			{
-				memset(temp, 0, sizeof(char)*100);
-				i=strlen(argv[index]);
-				while(1)
-				{
-					if(argv[index][i]=='/')
-						break;
-					i--;
-				}
-				for(j=0;j<i+1;j++)
-					temp[j] = argv[index][j];
-				i=j;
-				j=0;
-				for(;i<strlen(argv[index])+1;i++,j++)
-					d_name[j] = argv[index][i];
-				strcpy(path,argv[index]);
-			}
-			else		//상대경로
-			{
-				if(argv[index][0] == '.') //&& argv[index][1] == '.')	//current and parent dir
-				{
-					memset(temp, 0, sizeof(char)*100);
-					strcat(path,"/");
-					strcat(path, argv[index]);
-					if(strlen(argv[index])==1 && argv[index][0]=='.')
-						strcat(path,"/");
-					else if(strlen(argv[index])==2 && argv[index][0]=='.' && argv[index][1]=='.')
-						strcat(path,"/");
-
-					i=strlen(path);
-
-					while(1)
-					{
-						if(path[i]=='/')
-							break;
-						i--;
-					}
-
-					for(j=0;j<i+1;j++)
-						temp[j] = path[j];
-
-					memset(d_name,0,sizeof(char)*50);
-					i=j;
-					for(j=0;i<strlen(path);j++,i++)
-						d_name[j] = path[i];
-
-				}
-				else	//current dir
-				{
-					//path+name
-					memset(temp, 0, sizeof(char)*100);
-					strcpy(temp,path);
-					memset(d_name, 0, sizeof(char)*50);
-					for(i=0;i<strlen(argv[index]);i++)
-						d_name[i] = argv[index][i];
+			memset(path,0,sizeof(char)*150);
+			memset(temp,0,sizeof(char)*150);
+			memset(d_name,0,sizeof(char)*50);
 	
-					strcat(path,"/");
-					strcat(path,d_name);
-				}	
-			}
+			get_argument_path(argv[index],path, temp, d_name, index);
 
-/*			printf("path: %s\n",path);
- *			printf("temp: %s\n",temp);
- *			printf("d_name: %s\n",d_name);
-*/
+			printf("Directory path: %s\n",path);
+//			printf("temp: %s\n",temp);
+//			printf("d_name: %s\n",d_name);
+
 			//File인지 Directory인지 검사
 			if(stat(path,&buf)<0)
 			{
-				printf("ls: cannot access %s: No such file or directory\n",argv[index]);
+				printf("ls: cannot access %s: No such file or directory\n",argv[index]); 
 			}
-
-			if(S_ISDIR(buf.st_mode))	//directory
+			else
 			{
-				dirp = opendir(path);
-				while((dir=readdir(dirp))!=NULL)
-					insert_node(&list,dir);
-			}
-			else	//file
-			{
-				dirp = opendir(temp);
-				while((dir=readdir(dirp))!=NULL)
+				if(S_ISDIR(buf.st_mode))	//directory
 				{
-					if(strcmp(dir->d_name,d_name)==0)
-						insert_node(&list, dir);
+					dirp = opendir(path);
+					while((dir=readdir(dirp))!=NULL)
+						insert_node(&list,dir);
+					s_dir = 1;
 				}
-				aflag = 1;
+				else	//file
+				{
+					dirp = opendir(temp);
+					while((dir=readdir(dirp))!=NULL)
+					{
+						if(strcmp(dir->d_name,d_name)==0)
+							insert_node(&list, dir);
+					}
+					aflag = 1;
+					s_dir = 0;
+				}
+
+				add_hidden_mark(&list);
+				select_list(&list, aflag);
+				create_output(s_dir==1 ? path:temp, lflag);
+				closedir(dirp);
+				deallocated_node(&list);
 			}
-
-			add_hidden_mark(&list);
-			select_list(&list, aflag);
-			create_output(temp, lflag);
-			closedir(dirp);
-
-			deallocated_node(&list);
 		}
 	}
 
-
-
 	return 0;
+}
+
+void create_path(char* path)
+{
+	char *e;
+	char temp[150]={'\0'};
+
+	e = strtok(path,"/");
+	if(strcmp(e,"..")==0 || strcmp(e,".")==0)
+		temp[0]='/';
+	else
+		sprintf(temp, "%s%s", "/", e);
+
+	while(e = strtok(NULL,"/"))
+	{
+		if(strcmp(e,"..")==0)
+			del_front_path(temp);
+		else if(!strcmp(e,".")==0)
+			sprintf(temp,"%s%s%s",temp,"/",e);
+	}
+	
+	memset(path,0,sizeof(char)*150);
+	strcpy(path,temp);
+}
+
+void del_front_path(char* path)
+{
+	int i;
+
+	i=strlen(path);
+	while(i>=0)
+	{
+		if(path[i]=='/')
+			break;
+		path[i]='\0';
+		i--;
+	}
+	path[i]='\0';
+}
+
+void get_argument_path(char* argv, char* path, char* temp, char* d_name, int index)
+{
+	int i,j;
+	struct stat buf;
+	size_t size;
+	int bufsize;
+	char* ptr;
+
+	ptr = getcwd(path, _MAX_PATH);
+
+	if(index!=optind)
+		printf("\n");
+	if(argv[0] == '/')		//절대경로  case
+	{
+		memset(temp, 0, sizeof(char)*150);
+		i=strlen(argv);
+		while(1)
+		{
+			if(argv[i]=='/')
+				break;
+			i--;
+		}
+		for(j=0;j<i;j++)
+			temp[j] = argv[j];
+		i=++j;
+		j=0;
+		for(;i<strlen(argv)+1;i++,j++)
+			d_name[j] = argv[i];
+		strcpy(path,argv);
+	}
+	else		//상대경로
+	{
+		if(argv[0] == '.') //current and parent dir
+		{
+			memset(temp, 0, sizeof(char)*150);
+			strcat(path,"/");
+			strcat(path, argv);
+
+			if(strlen(argv)==1 && argv[0]=='.')
+				strcat(path,"/");
+			else if(strlen(argv)==2 && argv[0]=='.' && argv[1]=='.')
+				strcat(path,"/");
+
+			create_path(path);
+	
+			i=strlen(path);
+			while(i>=0)
+			{
+				if(path[i]=='/')
+					break;
+				i--;
+			}
+
+			for(j=0;j<i;j++)
+				temp[j] = path[j];
+		
+			memset(d_name,0,sizeof(char)*50);
+			i=++j;
+			for(j=0;i<strlen(path);j++,i++)
+				d_name[j] = path[i];
+
+		}
+		else	//current dir
+		{
+			//path+name
+			memset(temp, 0, sizeof(char)*150);
+			strcpy(temp,path);
+			memset(d_name, 0, sizeof(char)*50);
+			for(i=0;i<strlen(argv);i++)
+				d_name[i] = argv[i];
+
+			strcat(path,"/");
+			strcat(path,d_name);
+		}	
+	}
 }
 
 int insert_node(struct List *list, struct dirent *dir){
@@ -333,7 +379,7 @@ int create_output(char* path, int lflag)
 		memset(abs_path, 0, sizeof(char)*150);
 		if(lflag==1)
 		{
-			sprintf(abs_path, "%s%s",path,pCur->d_name);
+			sprintf(abs_path, "%s%s%s",path,"/",pCur->d_name);
 		if(stat(abs_path,&buf)<0){
 			printf("ls: cannot access %s: No such file or directory\n",pCur->d_name);
 			return -1;
@@ -406,8 +452,6 @@ int deallocated_node(struct List *list)
 	return 0;
 }
 
-
-
 int push(struct Node *node)
 {
 	if(queue_empty())
@@ -448,19 +492,3 @@ int queue_empty()
 	return 0;
 }
 
-int queue_size()
-{
-	int i=0;
-	struct Node* node;
-
-	if(queue_empty())
-		return i;
-	node = queue.pHead;
-	do
-	{
-		i++;
-		node = node->pQnext;
-	}while(node == queue.pTail);
-
-	return i;
-}

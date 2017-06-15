@@ -13,7 +13,7 @@
 	- 선택적으로 파일 혹은 디렉토리 인자를 받을 수 있다.
 4. **ls -al [filename or directory]**
 	- -a, -l 옵션을 함께 적용해서 해당 디렉토리의 hidden 파일을 포함한 모든 파일의 Permission, 소유자, 그룹, 크기, 날짜 등의 정보를 출력한다.
-5. **ls wild card matching
+5. **ls wild card matching**
 	- wild card matching ('*', '?', '[seq]')
 		- '*': 길이에 상관없이 문자열 matching
 		- '?': 하나의 character에 대해서 matching
