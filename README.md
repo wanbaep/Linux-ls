@@ -1,5 +1,5 @@
-# ls_Webserver
-> Linux Ubuntu의 ls 기능을 제공하는 Web Server를 구현하는 프로젝트이다. 순차적으로 먼저 여러 옵션을 사용할 수 있는 ls 프로그램을 구현하고 이를 Web Server에서 서비스 하도록 한다.
+# Linux ls 구현
+> Linux Ubuntu의 ls 기능을 제공하는 프로그램을 구현하는 프로젝트이다.
 
 ## ls 기능
 1. **ls [filename or directory]**
@@ -20,6 +20,3 @@
 		- '[seq]': seq내의 character에 대해서 matching
 	- Passing arguments with quotes ( eg. ./ls '*')
 	- Implements -h, -s, -S option
-
-## Web Server
-
